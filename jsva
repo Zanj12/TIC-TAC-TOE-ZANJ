@@ -1,126 +1,526 @@
-// Game state
-let gameState = {
-    authenticated: false,
-    user: null,
-    balance: 0,
-    currentGame: null,
-    playerSymbol: null,
-    currentTurn: null,
-    gameId: null,
-    opponent: null,
-    betAmount: 10,
-    pot: 0
+// Database simulation
+const users = {
+    '50943824124': { password: 'demo123', balance: 500, isDemo: true },
+    '50937283907': { password: 'dev123', balance: 0, isDev: true }
 };
 
-// DOM Elements
-const authSection = document.getElementById('auth-section');
-const userInfo = document.getElementById('user-info');
-const authButtons = document.getElementById('auth-buttons');
-const userName = document.getElementById('user-name');
-const userBalance = document.getElementById('user-balance');
-const logoutBtn = document.getElementById('logout-btn');
-const createAccountBtn = document.getElementById('create-account-btn');
-const loginBtn = document.getElementById('login-btn');
-const gameControls = document.getElementById('game-controls');
-const gameContainer = document.getElementById('game-container');
-const gameStatus = document.getElementById('game-status');
-const gameBoard = document.getElementById('game-board');
-const cells = document.querySelectorAll('.cell');
-const betAmountInput = document.getElementById('bet-amount');
-const createGameBtn = document.getElementById('create-game-btn');
-const joinGameBtn = document.getElementById('join-game-btn');
-const depositBtn = document.getElementById('deposit-btn');
-const withdrawBtn = document.getElementById('withdraw-btn');
-const authModal = document.getElementById('auth-modal');
-const moneyModal = document.getElementById('money-modal');
-const modalTitle = document.getElementById('modal-title');
-const verificationSection = document.getElementById('verification-section');
-const verifyCodeBtn = document.getElementById('verify-code-btn');
-const verificationCodeInput = document.getElementById('verification-code');
-const userPasswordInput = document.getElementById('user-password');
-const confirmPasswordInput = document.getElementById('confirm-password');
-const closeModalButtons = document.querySelectorAll('.close-modal');
-const moneyModalTitle = document.getElementById('money-modal-title');
-const moneyAmountInput = document.getElementById('money-amount');
-const confirmMoneyBtn = document.getElementById('confirm-money-btn');
-const chatMessages = document.getElementById('chat-messages');
-const chatInput = document.getElementById('chat-input');
-const sendChatBtn = document.getElementById('send-chat-btn');
+const games = {};
+let currentUser = null;
+let currentGame = null;
+let currentPlayer = null;
+let socket = null;
 
-// Mock database for demonstration
-const mockDB = {
-    users: [],
-    games: [],
-    sessions: {},
-    verificationCodes: {}
-};
+// Initialize WebSocket
+function initWebSocket() {
+    // Simulation of WebSocket
+    socket = {
+        send: function(data) {
+            console.log('WebSocket message sent:', data);
+            handleWebSocketResponse(data);
+        }
+    };
+}
 
-// Initialize the app
-function init() {
-    // Load user from localStorage if available
-    const savedUser = localStorage.getItem('ticTacToeUser');
-    if (savedUser) {
-        const user = JSON.parse(savedUser);
-        authenticateUser(user);
+function handleWebSocketResponse(data) {
+    if (data.type === 'createGame') {
+        handleCreateGame();
+    } else if (data.type === 'joinGame') {
+        handleJoinGame(data.gameId);
+    } else if (data.type === 'move') {
+        handleMove(data);
+    } else if (data.type === 'botMove') {
+        handleBotMove(data.gameId);
     }
-
-    // Event listeners
-    createAccountBtn.addEventListener('click', () => showAuthModal('Kreye Kont'));
-    loginBtn.addEventListener('click', () => showAuthModal('Konekte'));
-    logoutBtn.addEventListener('click', logout);
-    closeModalButtons.forEach(btn => btn.addEventListener('click', closeModal));
-    
-    createGameBtn.addEventListener('click', createGame);
-    joinGameBtn.addEventListener('click', joinGame);
-    
-    depositBtn.addEventListener('click', () => showMoneyModal('Depo', 25));
-    withdrawBtn.addEventListener('click', () => showMoneyModal('Retrè', 100));
-    confirmMoneyBtn.addEventListener('click', processMoneyTransaction);
-    
-    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
-    
-    betAmountInput.addEventListener('change', updateBetAmount);
-    sendChatBtn.addEventListener('click', sendChatMessage);
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendChatMessage();
-    });
-
-    // Initialize simulated auth
-    initializeGoogleAuth();
 }
 
-function initializeGoogleAuth() {
-    // Simulation for testing without real Google auth
-    document.getElementById('gmail-auth').innerHTML = `
-        <button id="simulated-google-btn" style="padding: 10px; background: #4285F4; color: white; border: none; border-radius: 4px; width: 100%; margin: 10px 0;">
-            Konekte ak Google (Simulation)
-        </button>
-    `;
+function handleCreateGame() {
+    const gameId = Math.random().toString(36).substring(2, 8);
+    const betAmount = parseInt(document.getElementById('betAmount').value) || 10;
     
-    document.getElementById('simulated-google-btn').addEventListener('click', () => {
-        const userEmail = "test@example.com";
-        const verificationCode = "123456";
-        mockDB.verificationCodes[userEmail] = verificationCode;
+    games[gameId] = {
+        id: gameId,
+        player1: currentUser,
+        player2: null,
+        betAmount: betAmount,
+        board: Array(9).fill(null),
+        currentPlayer: 'X',
+        status: 'waiting'
+    };
+    
+    currentGame = gameId;
+    currentPlayer = 'X';
+    
+    document.getElementById('createdGameId').textContent = gameId;
+    document.getElementById('createdGameBet').textContent = betAmount;
+    showModal('gameCreatedModal');
+    
+    users[currentUser].balance -= betAmount;
+    updateBalanceDisplay();
+}
+
+function handleJoinGame(gameId) {
+    if (games[gameId] && games[gameId].status === 'waiting') {
+        const betAmount = games[gameId].betAmount;
         
-        document.getElementById('verification-section').classList.remove('hidden');
-        alert(`KOD SIMILASYON: ${verificationCode}\nNan yon aplikasyon reyèl, sa ta voye nan imel ou.`);
+        games[gameId].player2 = currentUser;
+        games[gameId].status = 'in-progress';
+        currentGame = gameId;
+        currentPlayer = 'O';
+        
+        users[currentUser].balance -= betAmount;
+        updateBalanceDisplay();
+        
+        closeModal('joinGameModal');
+        startGame(gameId);
+    } else {
+        alert('Jwet sa a pa disponib oswa li fini deja');
+    }
+}
+
+function handleMove(data) {
+    const game = games[data.gameId];
+    if (game) {
+        game.board[data.index] = data.player;
+        game.currentPlayer = data.player === 'X' ? 'O' : 'X';
+        updateGameBoard(game);
+        
+        const winner = checkWinner(game.board);
+        if (winner) {
+            endGame(game, winner);
+        }
+    }
+}
+
+function handleBotMove(gameId) {
+    const game = games[gameId];
+    if (game && game.status === 'in-progress' && game.currentPlayer === 'O') {
+        const emptyCells = game.board.map((cell, index) => cell === null ? index : null).filter(val => val !== null);
+        
+        if (emptyCells.length > 0) {
+            const shouldWin = Math.random() < 0.6;
+            let moveIndex;
+            
+            if (shouldWin) {
+                for (const index of emptyCells) {
+                    const tempBoard = [...game.board];
+                    tempBoard[index] = 'O';
+                    if (checkWinner(tempBoard) === 'O') {
+                        moveIndex = index;
+                        break;
+                    }
+                }
+            }
+            
+            if (moveIndex === undefined) {
+                moveIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            }
+            
+            setTimeout(() => {
+                makeMove(moveIndex);
+            }, 1000);
+        }
+    }
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initWebSocket();
+    
+    // Set up event listeners
+    document.querySelector('#loginForm button').addEventListener('click', login);
+    document.querySelector('#registerForm button').addEventListener('click', register);
+    document.querySelector('#depositModal button').addEventListener('click', processDeposit);
+    document.querySelector('#withdrawModal button').addEventListener('click', processWithdraw);
+    document.querySelector('#joinGameModal button').addEventListener('click', joinGame);
+    document.querySelector('#gameCreatedModal button').addEventListener('click', cancelGame);
+    
+    // Check if demo account should be auto-logged in for testing
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('demo') === 'true') {
+        document.getElementById('loginPhone').value = '50943824124';
+        document.getElementById('loginPassword').value = 'demo123';
+        login();
+    }
+});
+
+// Auth functions
+function showRegister() {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+}
+
+function showLogin() {
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+}
+
+function register() {
+    const phone = document.getElementById('registerPhone').value;
+    const password = document.getElementById('registerPassword').value;
+    
+    if (!phone || !password) {
+        alert('Tanpri ranpli tout chan yo');
+        return;
+    }
+    
+    if (phone.length !== 11) {
+        alert('Nimewo Digicel la dwe gen 11 chif');
+        return;
+    }
+    
+    if (users[phone]) {
+        alert('Nimewo sa a deja enskri');
+        return;
+    }
+    
+    users[phone] = { password, balance: 0 };
+    alert('Kont ou kreye avèk siksè!');
+    showLogin();
+    document.getElementById('loginPhone').value = phone;
+    document.getElementById('loginPassword').value = password;
+}
+
+function login() {
+    const phone = document.getElementById('loginPhone').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!phone || !password) {
+        alert('Tanpri ranpli tout chan yo');
+        return;
+    }
+    
+    if (!users[phone] || users[phone].password !== password) {
+        alert('Nimewo oswa modpas pa kòrèk');
+        return;
+    }
+    
+    // Animation for login
+    const authSection = document.getElementById('authSection');
+    authSection.style.opacity = '0';
+    authSection.style.transition = 'opacity 0.5s';
+    
+    setTimeout(() => {
+        currentUser = phone;
+        authSection.style.display = 'none';
+        document.getElementById('gameSection').style.display = 'block';
+        document.getElementById('userPhoneDisplay').textContent = phone;
+        updateBalanceDisplay();
+        
+        // Reset opacity for next time
+        authSection.style.opacity = '1';
+    }, 500);
+}
+
+function logout() {
+    currentUser = null;
+    currentGame = null;
+    document.getElementById('authSection').style.display = 'block';
+    document.getElementById('gameSection').style.display = 'none';
+    document.getElementById('loginPhone').value = '';
+    document.getElementById('loginPassword').value = '';
+    showLogin();
+}
+
+// Balance functions
+function updateBalanceDisplay() {
+    if (currentUser) {
+        const balanceElement = document.getElementById('userBalance');
+        balanceElement.textContent = `Balans: ${users[currentUser].balance} GDS`;
+        
+        // Change color based on balance
+        if (users[currentUser].balance < 100) {
+            balanceElement.style.color = '#e74c3c';
+        } else if (users[currentUser].balance < 500) {
+            balanceElement.style.color = '#f39c12';
+        } else {
+            balanceElement.style.color = '#2ecc71';
+        }
+    }
+}
+
+// Transaction functions
+function showDeposit() {
+    document.getElementById('depositAmount').value = '';
+    showModal('depositModal');
+}
+
+function showWithdraw() {
+    document.getElementById('withdrawAmount').value = '';
+    showModal('withdrawModal');
+}
+
+function processDeposit() {
+    const amount = parseInt(document.getElementById('depositAmount').value);
+    
+    if (isNaN(amount)) {
+        alert('Tanpri antre yon kantite valab');
+        return;
+    }
+    
+    if (amount < 25) {
+        alert('Depo minimòm lan se 25 GDS');
+        return;
+    }
+    
+    // Show loading state
+    const depositBtn = document.querySelector('#depositModal button');
+    depositBtn.textContent = 'Ap depoze...';
+    depositBtn.disabled = true;
+    
+    setTimeout(() => {
+        users[currentUser].balance += amount;
+        updateBalanceDisplay();
+        closeModal('depositModal');
+        
+        // Visual feedback
+        const balanceElement = document.getElementById('userBalance');
+        balanceElement.style.transform = 'scale(1.1)';
+        balanceElement.style.transition = 'transform 0.3s';
+        setTimeout(() => balanceElement.style.transform = 'scale(1)', 300);
+        
+        depositBtn.textContent = 'Depoze';
+        depositBtn.disabled = false;
+        
+        alert(`Ou fè yon depo ${amount} GDS avèk siksè!`);
+    }, 1000);
+}
+
+function processWithdraw() {
+    const amount = parseInt(document.getElementById('withdrawAmount').value);
+    
+    if (isNaN(amount)) {
+        alert('Tanpri antre yon kantite valab');
+        return;
+    }
+    
+    if (amount < 100) {
+        alert('Retrè minimòm lan se 100 GDS');
+        return;
+    }
+    
+    if (amount > users[currentUser].balance) {
+        alert('Ou pa gen ase lajan nan balans ou');
+        return;
+    }
+    
+    // Show loading state
+    const withdrawBtn = document.querySelector('#withdrawModal button');
+    withdrawBtn.textContent = 'Ap retire...';
+    withdrawBtn.disabled = true;
+    
+    setTimeout(() => {
+        users[currentUser].balance -= amount;
+        updateBalanceDisplay();
+        closeModal('withdrawModal');
+        
+        // Visual feedback
+        const balanceElement = document.getElementById('userBalance');
+        balanceElement.style.transform = 'scale(1.1)';
+        balanceElement.style.transition = 'transform 0.3s';
+        setTimeout(() => balanceElement.style.transform = 'scale(1)', 300);
+        
+        withdrawBtn.textContent = 'Retire';
+        withdrawBtn.disabled = false;
+        
+        alert(`Ou fè yon retrè ${amount} GDS avèk siksè!`);
+    }, 1000);
+}
+
+// Game functions
+function createGame() {
+    const betAmount = parseInt(document.getElementById('betAmount').value) || 10;
+    
+    if (betAmount < 10) {
+        alert('Minimòm pou parye se 10 GDS');
+        return;
+    }
+    
+    if (betAmount > users[currentUser].balance) {
+        alert('Ou pa gen ase lajan nan balans ou');
+        return;
+    }
+    
+    if (users[currentUser].isDev) {
+        alert('Devlopè a pa ka jwe');
+        return;
+    }
+    
+    socket.send({ type: 'createGame' });
+}
+
+function showJoinGame() {
+    showModal('joinGameModal');
+}
+
+function joinGame() {
+    const gameId = document.getElementById('gameId').value;
+    
+    if (!gameId) {
+        alert('Tanpri antre ID jwet la');
+        return;
+    }
+    
+    socket.send({ type: 'joinGame', gameId });
+}
+
+function playWithBot() {
+    const betAmount = parseInt(document.getElementById('betAmount').value) || 10;
+    
+    if (betAmount < 10) {
+        alert('Minimòm pou parye se 10 GDS');
+        return;
+    }
+    
+    if (betAmount > users[currentUser].balance) {
+        alert('Ou pa gen ase lajan nan balans ou');
+        return;
+    }
+    
+    if (users[currentUser].isDev) {
+        alert('Devlopè a pa ka jwe');
+        return;
+    }
+    
+    const gameId = Math.random().toString(36).substring(2, 8);
+    games[gameId] = {
+        id: gameId,
+        player1: currentUser,
+        player2: 'bot',
+        betAmount: betAmount,
+        board: Array(9).fill(null),
+        currentPlayer: 'X',
+        status: 'in-progress'
+    };
+    
+    currentGame = gameId;
+    currentPlayer = 'X';
+    
+    users[currentUser].balance -= betAmount;
+    users['50937283907'].balance -= betAmount;
+    updateBalanceDisplay();
+    
+    startGame(gameId);
+}
+
+function cancelGame() {
+    if (currentGame && games[currentGame].status === 'waiting') {
+        users[currentUser].balance += games[currentGame].betAmount;
+        updateBalanceDisplay();
+        
+        delete games[currentGame];
+        currentGame = null;
+        closeModal('gameCreatedModal');
+        document.getElementById('gameBoard').style.display = 'none';
+    }
+}
+
+function startGame(gameId) {
+    const game = games[gameId];
+    if (!game) return;
+    
+    document.getElementById('gameBoard').style.display = 'block';
+    document.getElementById('gameStatus').textContent = game.player2 === 'bot' ? 
+        'Wap jwe kont Robo a' : `Wap jwe kont ${game.player2}`;
+    
+    // Clear the board
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.textContent = '';
+        cell.addEventListener('click', cellClickHandler);
     });
 }
 
-function showAuthModal(title) {
-    modalTitle.textContent = title;
-    authModal.classList.remove('hidden');
-    verificationSection.classList.add('hidden');
-    initializeGoogleAuth(); // Reinitialize the auth button
+function cellClickHandler() {
+    const index = parseInt(this.getAttribute('data-index'));
+    makeMove(index);
+    
+    const game = games[currentGame];
+    if (game && game.player2 === 'bot' && game.currentPlayer === 'O' && game.status === 'in-progress') {
+        socket.send({ type: 'botMove', gameId: currentGame });
+    }
 }
 
-// [Include all the other functions from the previous version]
-// authenticateUser(), logout(), showMoneyModal(), closeModal(), 
-// updateBetAmount(), processMoneyTransaction(), createGame(), 
-// joinGame(), handleCellClick(), checkWinner(), endGame(), 
-// resetGame(), addChatMessage(), sendChatMessage()
+function makeMove(index) {
+    const game = games[currentGame];
+    if (!game || game.board[index] !== null || game.status !== 'in-progress' || game.currentPlayer !== currentPlayer) {
+        return;
+    }
+    
+    socket.send({ 
+        type: 'move', 
+        gameId: currentGame, 
+        index: index, 
+        player: currentPlayer 
+    });
+}
 
-// Add all the remaining functions exactly as they were in the previous version
+function updateGameBoard(game) {
+    game.board.forEach((cell, index) => {
+        const cellElement = document.querySelector(`.cell[data-index="${index}"]`);
+        cellElement.textContent = cell;
+    });
+    
+    document.getElementById('gameStatus').textContent = 
+        game.status === 'finished' ? 
+            (game.winner === 'draw' ? 'Match nul!' : `Jwè ${game.winner} genyen!`) :
+        `Lè jwè ${game.currentPlayer} jouwe`;
+}
 
-// Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+function endGame(game, winner) {
+    game.status = 'finished';
+    game.winner = winner;
+    
+    if (winner === 'draw') {
+        users[game.player1].balance += game.betAmount;
+        if (game.player2 !== 'bot') {
+            users[game.player2].balance += game.betAmount;
+        } else {
+            users['50937283907'].balance += game.betAmount;
+        }
+    } else if (winner === 'X') {
+        const winnings = Math.floor(game.betAmount * 2 * 0.85);
+        users[game.player1].balance += winnings;
+        users['50937283907'].balance += game.betAmount * 2 - winnings;
+    } else {
+        const winnings = Math.floor(game.betAmount * 2 * 0.85);
+        if (game.player2 !== 'bot') {
+            users[game.player2].balance += winnings;
+            users['50937283907'].balance += game.betAmount * 2 - winnings;
+        } else {
+            users['50937283907'].balance += game.betAmount * 2;
+        }
+    }
+    
+    updateBalanceDisplay();
+    document.getElementById('gameStatus').textContent = 
+        winner === 'draw' ? 'Match nul!' : `Jwè ${winner} genyen!`;
+}
+
+function checkWinner(board) {
+    const winPatterns = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+    ];
+    
+    for (const pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a];
+        }
+    }
+    
+    if (!board.includes(null)) {
+        return 'draw';
+    }
+    
+    return null;
+}
+
+// Modal functions
+function showModal(modalId) {
+    document.getElementById(modalId).style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
