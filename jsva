@@ -1,0 +1,126 @@
+// Game state
+let gameState = {
+    authenticated: false,
+    user: null,
+    balance: 0,
+    currentGame: null,
+    playerSymbol: null,
+    currentTurn: null,
+    gameId: null,
+    opponent: null,
+    betAmount: 10,
+    pot: 0
+};
+
+// DOM Elements
+const authSection = document.getElementById('auth-section');
+const userInfo = document.getElementById('user-info');
+const authButtons = document.getElementById('auth-buttons');
+const userName = document.getElementById('user-name');
+const userBalance = document.getElementById('user-balance');
+const logoutBtn = document.getElementById('logout-btn');
+const createAccountBtn = document.getElementById('create-account-btn');
+const loginBtn = document.getElementById('login-btn');
+const gameControls = document.getElementById('game-controls');
+const gameContainer = document.getElementById('game-container');
+const gameStatus = document.getElementById('game-status');
+const gameBoard = document.getElementById('game-board');
+const cells = document.querySelectorAll('.cell');
+const betAmountInput = document.getElementById('bet-amount');
+const createGameBtn = document.getElementById('create-game-btn');
+const joinGameBtn = document.getElementById('join-game-btn');
+const depositBtn = document.getElementById('deposit-btn');
+const withdrawBtn = document.getElementById('withdraw-btn');
+const authModal = document.getElementById('auth-modal');
+const moneyModal = document.getElementById('money-modal');
+const modalTitle = document.getElementById('modal-title');
+const verificationSection = document.getElementById('verification-section');
+const verifyCodeBtn = document.getElementById('verify-code-btn');
+const verificationCodeInput = document.getElementById('verification-code');
+const userPasswordInput = document.getElementById('user-password');
+const confirmPasswordInput = document.getElementById('confirm-password');
+const closeModalButtons = document.querySelectorAll('.close-modal');
+const moneyModalTitle = document.getElementById('money-modal-title');
+const moneyAmountInput = document.getElementById('money-amount');
+const confirmMoneyBtn = document.getElementById('confirm-money-btn');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const sendChatBtn = document.getElementById('send-chat-btn');
+
+// Mock database for demonstration
+const mockDB = {
+    users: [],
+    games: [],
+    sessions: {},
+    verificationCodes: {}
+};
+
+// Initialize the app
+function init() {
+    // Load user from localStorage if available
+    const savedUser = localStorage.getItem('ticTacToeUser');
+    if (savedUser) {
+        const user = JSON.parse(savedUser);
+        authenticateUser(user);
+    }
+
+    // Event listeners
+    createAccountBtn.addEventListener('click', () => showAuthModal('Kreye Kont'));
+    loginBtn.addEventListener('click', () => showAuthModal('Konekte'));
+    logoutBtn.addEventListener('click', logout);
+    closeModalButtons.forEach(btn => btn.addEventListener('click', closeModal));
+    
+    createGameBtn.addEventListener('click', createGame);
+    joinGameBtn.addEventListener('click', joinGame);
+    
+    depositBtn.addEventListener('click', () => showMoneyModal('Depo', 25));
+    withdrawBtn.addEventListener('click', () => showMoneyModal('Retrè', 100));
+    confirmMoneyBtn.addEventListener('click', processMoneyTransaction);
+    
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    
+    betAmountInput.addEventListener('change', updateBetAmount);
+    sendChatBtn.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+
+    // Initialize simulated auth
+    initializeGoogleAuth();
+}
+
+function initializeGoogleAuth() {
+    // Simulation for testing without real Google auth
+    document.getElementById('gmail-auth').innerHTML = `
+        <button id="simulated-google-btn" style="padding: 10px; background: #4285F4; color: white; border: none; border-radius: 4px; width: 100%; margin: 10px 0;">
+            Konekte ak Google (Simulation)
+        </button>
+    `;
+    
+    document.getElementById('simulated-google-btn').addEventListener('click', () => {
+        const userEmail = "test@example.com";
+        const verificationCode = "123456";
+        mockDB.verificationCodes[userEmail] = verificationCode;
+        
+        document.getElementById('verification-section').classList.remove('hidden');
+        alert(`KOD SIMILASYON: ${verificationCode}\nNan yon aplikasyon reyèl, sa ta voye nan imel ou.`);
+    });
+}
+
+function showAuthModal(title) {
+    modalTitle.textContent = title;
+    authModal.classList.remove('hidden');
+    verificationSection.classList.add('hidden');
+    initializeGoogleAuth(); // Reinitialize the auth button
+}
+
+// [Include all the other functions from the previous version]
+// authenticateUser(), logout(), showMoneyModal(), closeModal(), 
+// updateBetAmount(), processMoneyTransaction(), createGame(), 
+// joinGame(), handleCellClick(), checkWinner(), endGame(), 
+// resetGame(), addChatMessage(), sendChatMessage()
+
+// Add all the remaining functions exactly as they were in the previous version
+
+// Initialize the app when the DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
