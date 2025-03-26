@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jwèt Tic Tac Toe Anliy</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tic Tac Toe Anliy</h1>
+            <div id="auth-section">
+                <div id="user-info" class="hidden">
+                    <span id="user-name"></span>
+                    <span id="user-balance">Balans: 0 GDS</span>
+                    <button id="logout-btn">Dekonekte</button>
+                </div>
+                <div id="auth-buttons">
+                    <button id="create-account-btn">Kreye Kont</button>
+                    <button id="login-btn">Konekte</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="game-controls" class="hidden">
+            <div class="money-controls">
+                <button id="deposit-btn">Depo (Min 25 GDS)</button>
+                <button id="withdraw-btn">Retrè (Min 100 GDS)</button>
+            </div>
+            
+            <div class="game-actions">
+                <div class="bet-control">
+                    <label for="bet-amount">Kantite pou parye (Min 10 GDS):</label>
+                    <input type="number" id="bet-amount" min="10" value="10">
+                </div>
+                <button id="create-game-btn">Kreye Jwet</button>
+                <button id="join-game-btn">Rejwenn Jwet</button>
+            </div>
+        </div>
+
+        <div id="game-container" class="hidden">
+            <div id="game-status">Kreye oswa rejwenn yon jwet</div>
+            <div id="game-board">
+                <div class="cell" data-index="0"></div>
+                <div class="cell" data-index="1"></div>
+                <div class="cell" data-index="2"></div>
+                <div class="cell" data-index="3"></div>
+                <div class="cell" data-index="4"></div>
+                <div class="cell" data-index="5"></div>
+                <div class="cell" data-index="6"></div>
+                <div class="cell" data-index="7"></div>
+                <div class="cell" data-index="8"></div>
+            </div>
+            <div id="game-chat">
+                <div id="chat-messages"></div>
+                <input type="text" id="chat-input" placeholder="Antre mesaj ou...">
+                <button id="send-chat-btn">Voye</button>
+            </div>
+        </div>
+
+        <div id="auth-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="modal-title">Kreye Kont</h2>
+                <div id="gmail-auth"></div>
+                <div id="verification-section" class="hidden">
+                    <p>Nou voye yon kod verifikasyon sou imel ou. Tanpri antre kòd la.</p>
+                    <input type="text" id="verification-code" placeholder="Kod Verifikasyon">
+                    <input type="password" id="user-password" placeholder="Kreye Modpas">
+                    <input type="password" id="confirm-password" placeholder="Konfime Modpas">
+                    <button id="verify-code-btn">Konfime</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="money-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                <h2 id="money-modal-title">Depo</h2>
+                <div id="money-form">
+                    <label for="money-amount">Kantite lajan:</label>
+                    <input type="number" id="money-amount" min="25" value="25">
+                    <button id="confirm-money-btn">Konfime</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
